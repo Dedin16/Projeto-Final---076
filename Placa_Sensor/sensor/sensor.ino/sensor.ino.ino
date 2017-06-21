@@ -9,9 +9,10 @@ RF24 myRadio (7, 8);    //(CE,CSN)
 byte addresses[][4] = {"ch1","ch2"};
 
 char incomingByte;
-char mensagem[1000];
+char mensagem[100];
 int i=0, tempo=0;
-char fim=0;
+char fim=0, temperatura=0;
+int tempo_aquisicao=10;
 
 
 
@@ -125,7 +126,6 @@ void grava_temperatura()
 }
 
 void loop(){
-    int tempo_aquisicao=10,lido=0;
     
     if(tempo>tempo_aquisicao){
         grava_temperatura();
@@ -138,7 +138,44 @@ void loop(){
         Serial.println("A última temperatura gravada foi:");
         Serial.print(T);
         Serial.println("ºC");
+        Serial.println("DADO em HEX:");
+        Serial.print(valor_lido_hi, HEX);
+        Serial.println(valor_lido_lo, HEX);
+        Serial.print("DAdos na memória:  ");
+        Serial.println(tamanho);
+
+        char  enter='\n';
+        /*
+        unsigned char lido_lo=valor_lido_lo;
+        unsigned char lido_hi=valor_lido_hi;
+        
+        char  enter='\n';
+
+        Serial.println(lido_hi,HEX);
+        Serial.println(lido_lo,HEX);
+        */
+        
+        myRadio.stopListening();      //Modo envio
+    
+        if(!myRadio.write(&valor_lido_hi, sizeof(byte)))   //Envia caracter para RF
+              {
+                   Serial.println("Erro na Transmisão");
+              }
+       
+        if(!myRadio.write(&valor_lido_lo, sizeof(byte)))   //Envia caracter para RF
+              {
+                   Serial.println("Erro na Transmisão");
+              }
+
+        if(!myRadio.write(&enter, sizeof(char)))   //Envia caracter para RF
+              {
+                   Serial.println("Erro na Transmisão");
+              }
+        
+        myRadio.startListening();   //Modo escuta
+        
         tempo=0;
+        temperatura=1;
     }
 
 
@@ -158,7 +195,13 @@ void loop(){
                   }
                 }
           myRadio.startListening();   //Modo escuta
-  }               
+  }
+
+  if(temperatura)
+  {
+    temperatura=0;
+  }
+
 
   //Recepcao
   if (myRadio.available())       //Ha dados vindos do RF
@@ -183,7 +226,7 @@ void loop(){
 
   }
 
-  if(fim)   //Se houver mensagem recebida
+  if(fim)   //Trata a mensagem recebida
   {
       Serial.print("Pessoa:");
       Serial.println(mensagem);
