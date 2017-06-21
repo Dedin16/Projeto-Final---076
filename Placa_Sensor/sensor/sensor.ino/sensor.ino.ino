@@ -6,7 +6,7 @@
 #define i2cAddress 0x50 //Endereço da EEPROM (I2C)
 
 RF24 myRadio (7, 8);    //(CE,CSN)
-byte addresses[][7] = {"canal1","canal2"};
+byte addresses[][4] = {"ch1","ch2"};
 
 char incomingByte;
 char mensagem[1000];
@@ -38,13 +38,13 @@ void setup()
   myRadio.startListening();
 
   //Inicializa pino do sensor A0
-  pinMode(A0, INPUT); 
+  pinMode(A0, INPUT);
+  delay(1000); 
 
   //Inicializa I2C
   Wire.begin();
-
+  delay(1000);
   clear_mem();
-  
 }
 
 void write_mem(int i2cAddr, byte memoryAddress, byte data)
@@ -114,25 +114,30 @@ void timerIsr()
 
 }
 
-void loop(){
-    int sensorValue,lido=0;
-    char valor[3];
-    char valor_lido[3];
+void grava_temperatura()
+{
+        int sensorValue = analogRead(A0);
+        byte hiByte = highByte(sensorValue);
+        byte loByte = lowByte(sensorValue);
+        write_dado(hiByte);
+        write_dado(loByte);
+  
+}
 
-    if(tempo>8){
-        sensorValue = analogRead(A0);
-        sprintf(valor, "%d",sensorValue);
-        Serial.print("O valor gravado é: ");
-        Serial.println(valor);
-        write_dado(valor[0]);
-        write_dado(valor[1]);
-        write_dado(valor[2]);
-        valor_lido[0]=read_dado(1);
-        valor_lido[1]=read_dado(2);
-        valor_lido[1]=read_dado(3);
-        lido= atoi(valor_lido);
-        Serial.print("O valor lido é: ");
-        Serial.println(valor_lido);
+void loop(){
+    int tempo_aquisicao=10,lido=0;
+    
+    if(tempo>tempo_aquisicao){
+        grava_temperatura();
+        int tamanho=dados_mem();
+        byte valor_lido_hi =read_dado(tamanho-1);
+        byte valor_lido_lo =read_dado(tamanho);
+        int eepromValue = (valor_lido_hi<<8) + valor_lido_lo;
+        float voltage = eepromValue*(5.0/1023.0);
+        float T=((voltage-0.6)*100);
+        Serial.println("A última temperatura gravada foi:");
+        Serial.print(T);
+        Serial.println("ºC");
         tempo=0;
     }
 
