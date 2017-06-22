@@ -233,6 +233,11 @@ void loop(){
           envia_RF(chave,sizeof(chave));
           
           int  number= dados_mem()/2;
+          char data[10];
+          sprintf(data,"%d",number);
+          delay(100);
+          envia_RF(data,sizeof(data));
+          
           for(i=0;i<number;i++){
             float T= le_temp_mem(i+1);
             char data[10];
