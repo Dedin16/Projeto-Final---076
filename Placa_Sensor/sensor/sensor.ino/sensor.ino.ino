@@ -11,7 +11,7 @@ byte addresses[][4] = {"ch1","ch2"};
 char incomingByte;
 char mensagem[100]="";
 int i=0, tempo=0,size_msg=0;
-char fim=0, temperatura=0;
+char recebeu=0,auto_record=0;
 int tempo_aquisicao=10;
 
 
@@ -45,7 +45,6 @@ void setup()
   //Inicializa I2C
   Wire.begin();
   delay(1000);
-  clear_mem();
 }
 
 void write_mem(int i2cAddr, byte memoryAddress, byte data)
@@ -143,58 +142,12 @@ void envia_RF(char *msg, int tam){
 }
 
 void loop(){
-    
-    if(tempo>tempo_aquisicao){
-        grava_temperatura();
-        int tamanho=dados_mem();
 
-        //Read dados
-        byte valor_lido_hi =read_dado(tamanho-1);
-        byte valor_lido_lo =read_dado(tamanho);
-
-        //Conversao
-        int eepromValue = (valor_lido_hi<<8) + valor_lido_lo;
-        float voltage = eepromValue*(5.0/1023.0);
-        float T=((voltage-0.6)*100);
-
-        /*
-        Serial.println("A última temperatura gravada foi:");
-        Serial.print(T);
-        Serial.println("ºC");
-        Serial.println("DADO em HEX:");
-        Serial.print(valor_lido_hi, HEX);
-        Serial.println(valor_lido_lo, HEX);
-        Serial.print("DAdos na memória:  ");
-        Serial.println(tamanho);
-        */
-        
-        /*
-        //Envia um dado para RF
-        
-        char  enter='\n';
-        
-        myRadio.stopListening();      //Modo envio
-    
-        if(!myRadio.write(&valor_lido_hi, sizeof(byte)))   //Envia caracter para RF
-              {
-                   Serial.println("Erro na Transmisão");
-              }
-       
-        if(!myRadio.write(&valor_lido_lo, sizeof(byte)))   //Envia caracter para RF
-              {
-                   Serial.println("Erro na Transmisão");
-              }
-
-        if(!myRadio.write(&enter, sizeof(char)))   //Envia caracter para RF
-              {
-                   Serial.println("Erro na Transmisão");
-              }
-        
-        myRadio.startListening();   //Modo escuta
-        */
-        
-        tempo=0;
-        temperatura=1;
+    if(auto_record){
+        if(tempo>tempo_aquisicao){
+            grava_temperatura();
+            tempo=0;
+        }
     }
 
 
@@ -231,14 +184,14 @@ void loop(){
         else
         {
             mensagem[size_msg]='\0';                                       // Caracter de fim de linha
-            fim=1;
+            recebeu=1;
         }
       
     }
 
   }
   
-  if(fim)   //Trata a mensagem recebida
+  if(recebeu)   //Trata a mensagem recebida
   {
       
       if(strcmp(mensagem,"ping")==0){
@@ -269,22 +222,61 @@ void loop(){
 
      if(strcmp(mensagem,"measure")==0){
           Serial.println("measure");
+          int sensorValue = analogRead(A0);
+          float voltage = sensorValue*(5.0/1023.0);
+          float T=((voltage-0.6)*100);
+          
+          char data[10];
+          int inteiro, frac;
+          inteiro= (int)T%1000;
+          frac= (((int)(T*10))%10)*10+(((int)(T*100))%10);
+          sprintf(data,"%d.%d",inteiro,frac);
+          Serial.println(T);
+          Serial.println(data);
+          delay(100);
+          envia_RF(data,sizeof(data));
+          
+          
      }
      
      if(strcmp(mensagem,"play")==0){
           Serial.println("play");
+          auto_record=1;
      }
 
      if(strcmp(mensagem,"stop")==0){
           Serial.println("stop");
+          auto_record=0;
      }
 
-     if(strcmp(mensagem,"freeze")==0){
-          Serial.println("freeze");
-     }
+     if(strstr(mensagem, "get_") != NULL){
+          int n;
+          sscanf(mensagem,"get_%d",&n);
+          Serial.println(n);
+          
+          byte valor_lido_lo =read_dado(2*n);
+          byte valor_lido_hi =read_dado((2*n)-1);
+          int eepromValue = (valor_lido_hi<<8) + valor_lido_lo;
+          float voltage = eepromValue*(5.0/1023.0);
+          float T=((voltage-0.6)*100);
+          Serial.println(T);
+          
+          if(n>(dados_mem()/2)){
+            char envia[] = "Posição Vazia";
+            envia_RF(envia,sizeof(envia));
+          }
+          else{
+            char data[10];
+            int inteiro, frac;
+            inteiro= (int)T%1000;
+            frac= (((int)(T*10))%10)*10+(((int)(T*100))%10);
+            sprintf(data,"%d.%d",inteiro,frac);
+            Serial.println(T);
+            Serial.println(data);
+            delay(100);
+            envia_RF(data,sizeof(data));
+          }
 
-     if(strcmp(mensagem,"get_n")==0){
-          Serial.println("get_n");
      }
 
 
@@ -292,7 +284,7 @@ void loop(){
      for(i=0;i<size_msg;i++)mensagem[i]='\0';   //Limpa string de mensagem
      
      size_msg=0;
-     fim=0;
+     recebeu=0;
   }
   }
 
