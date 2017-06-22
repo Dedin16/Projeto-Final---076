@@ -141,6 +141,15 @@ void envia_RF(char *msg, int tam){
 
 }
 
+float le_temp_mem(int n){
+          byte valor_lido_lo =read_dado(2*n);
+          byte valor_lido_hi =read_dado((2*n)-1);
+          int eepromValue = (valor_lido_hi<<8) + valor_lido_lo;
+          float voltage = eepromValue*(5.0/1023.0);
+          float T=((voltage-0.6)*100);
+          return T;
+}
+
 void loop(){
 
     if(auto_record){
@@ -218,6 +227,24 @@ void loop(){
 
      if(strcmp(mensagem,"download")==0){
           Serial.println("download");
+          char chave[]="flag";
+          char testando[]="testando";
+          delay(100);
+          envia_RF(chave,sizeof(chave));
+          
+          int  number= dados_mem()/2;
+          for(i=0;i<number;i++){
+            float T= le_temp_mem(i+1);
+            char data[10];
+            int inteiro, frac;
+            inteiro= (int)T%1000;
+            frac= (((int)(T*10))%10)*10+(((int)(T*100))%10);
+            sprintf(data,"%d.%d",inteiro,frac);
+            
+            delay(100);
+            envia_RF(data,sizeof(data));
+          }
+          
      }
 
      if(strcmp(mensagem,"measure")==0){
@@ -263,6 +290,7 @@ void loop(){
           
           if(n>(dados_mem()/2)){
             char envia[] = "Posição Vazia";
+            delay(100);
             envia_RF(envia,sizeof(envia));
           }
           else{
