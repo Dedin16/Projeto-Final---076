@@ -279,7 +279,6 @@ void loop(){
      if(strstr(mensagem, "get_") != NULL){
           int n;
           sscanf(mensagem,"get_%d",&n);
-          Serial.println(n);
           
           byte valor_lido_lo =read_dado(2*n);
           byte valor_lido_hi =read_dado((2*n)-1);
